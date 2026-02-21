@@ -1,0 +1,54 @@
+name: Daily Sync
+
+on:
+  schedule:
+    # 每天 3 次: 08:00, 16:00, 22:00 (UTC)
+    - cron: '0 8,16,22 * * *'
+  workflow_dispatch:
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Git
+        run: |
+          git config user.name "Helix Bot"
+          git config user.email "helix@bot.local"
+
+      - name: Check Updates
+        id: check
+        run: |
+          git fetch origin master
+          if git diff HEAD origin/master --quiet; then
+            echo "changes=false" >> $GITHUB_OUTPUT
+          else
+            echo "changes=true" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Pull Latest
+        if: steps.check.outputs.changes == 'true'
+        run: git pull origin master
+
+      - name: Update Knowledge Index
+        run: |
+          echo "# Last Sync" > sync-status.md
+          echo "- Time: $(date -u +%Y-%m-%dT%H:%M:%SZ)" >> sync-status.md
+          echo "- Status: Success" >> sync-status.md
+
+      - name: Commit & Push
+        if: steps.check.outputs.changes == 'true'
+        run: |
+          git add .
+          git commit -m "sync: $(date +%Y-%m-%d)" || echo "No changes to commit"
+          git push
+
+      - name: Notify (Optional)
+        if: false  # 关闭通知
+        run: echo "Sync completed"
