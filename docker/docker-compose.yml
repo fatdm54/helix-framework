@@ -1,0 +1,182 @@
+version: '3.8'
+
+services:
+  # 调度中枢
+  helix:
+    build:
+      context: .
+      dockerfile: docker/agents/helix.Dockerfile
+    env_file:
+      - .env
+    volumes:
+      - ./roles:/app/roles
+      - ./knowledge:/app/knowledge
+      - ./workflows:/app/workflows
+    environment:
+      - AGENT_NAME=Helix
+      - AGENT_TYPE=orchestrator
+      - MODEL=${HELIX_MODEL:-gpt-4o}
+    ports:
+      - "3000:3000"
+    restart: unless-stopped
+
+  # 代码开发
+  codex:
+    build:
+      context: .
+      dockerfile: docker/agents/codex.Dockerfile
+    env_file:
+      - .env
+    volumes:
+      - ./roles:/app/roles
+      - ./knowledge/skills:/app/skills
+    environment:
+      - AGENT_NAME=Codex
+      - AGENT_TYPE=executor
+      - MODEL=${CODEX_MODEL:-codex}
+    ports:
+      - "3001:3001"
+    restart: unless-stopped
+
+  # 调研员
+  researcher:
+    build:
+      context: .
+      dockerfile: docker/agents/researcher.Dockerfile
+    env_file:
+      - .env
+    volumes:
+      - ./roles:/app/roles
+      - ./knowledge/skills:/app/skills
+    environment:
+      - AGENT_NAME=Researcher
+      - AGENT_TYPE=researcher
+      - MODEL=${RESEARCHER_MODEL:-gpt-4o}
+    ports:
+      - "3002:3002"
+    restart: unless-stopped
+
+  # 代码审查
+  reviewer:
+    build:
+      context: .
+      dockerfile: docker/agents/reviewer.Dockerfile
+    env_file:
+      - .env
+    volumes:
+      - ./roles:/app/roles
+    environment:
+      - AGENT_NAME=Reviewer
+      - AGENT_TYPE=reviewer
+      - MODEL=${REVIEWER_MODEL:-claude}
+    ports:
+      - "3003:3003"
+    restart: unless-stopped
+
+  # 测试工程师
+  tester:
+    build:
+      context: .
+      dockerfile: docker/agents/tester.Dockerfile
+    env_file:
+      - .env
+    volumes:
+      - ./roles:/app/roles
+    environment:
+      - AGENT_NAME=Tester
+      - AGENT_TYPE=tester
+      - MODEL=${TESTER_MODEL:-gpt-4o}
+    ports:
+      - "3004:3004"
+    restart: unless-stopped
+
+  # 文档工程师
+  documenter:
+    build:
+      context: .
+      dockerfile: docker/agents/documenter.Dockerfile
+    env_file:
+      - .env
+    volumes:
+      - ./roles:/app/roles
+    environment:
+      - AGENT_NAME=Documenter
+      - AGENT_TYPE=documenter
+      - MODEL=${DOCUMENTER_MODEL:-gpt-4o}
+    ports:
+      - "3005:3005"
+    restart: unless-stopped
+
+  # 资源协调
+  scheduler:
+    build:
+      context: .
+      dockerfile: docker/agents/scheduler.Dockerfile
+    env_file:
+      - .env
+    volumes:
+      - ./roles:/app/roles
+    environment:
+      - AGENT_NAME=Scheduler
+      - AGENT_TYPE=coordinator
+      - MODEL=${SCHEDULER_MODEL:-gpt-4o}
+    ports:
+      - "3006:3006"
+    restart: unless-stopped
+
+  # 质量评估
+  evaluator:
+    build:
+      context: .
+      dockerfile: docker/agents/evaluator.Dockerfile
+    env_file:
+      - .env
+    volumes:
+      - ./roles:/app/roles
+    environment:
+      - AGENT_NAME=Evaluator
+      - AGENT_TYPE=evaluator
+      - MODEL=${EVALUATOR_MODEL:-claude}
+    ports:
+      - "3007:3007"
+    restart: unless-stopped
+
+  # 进化工程师
+  learning:
+    build:
+      context: .
+      dockerfile: docker/agents/learning.Dockerfile
+    env_file:
+      - .env
+    volumes:
+      - ./roles:/app/roles
+      - ./knowledge:/app/knowledge
+    environment:
+      - AGENT_NAME=Learning
+      - AGENT_TYPE=learner
+      - MODEL=${LEARNING_MODEL:-gpt-4o}
+    ports:
+      - "3008:3008"
+    restart: unless-stopped
+
+  # 安全守护
+  guardian:
+    build:
+      context: .
+      dockerfile: docker/agents/guardian.Dockerfile
+    env_file:
+      - .env
+    volumes:
+      - ./roles:/app/roles
+    environment:
+      - AGENT_NAME=Guardian
+      - AGENT_TYPE=guardian
+      - MODEL=${GUARDIAN_MODEL:-gpt-4o}
+    ports:
+      - "3009:3009"
+    restart: unless-stopped
+
+# 网络
+networks:
+  default:
+    name: helix-network
