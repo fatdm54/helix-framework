@@ -1,182 +1,304 @@
 version: '3.8'
 
+# ===========================================
+# Helix Agent Framework - 完整版
+# ===========================================
+
 services:
   # 调度中枢
   helix:
     build:
-      context: .
+      context: ..
       dockerfile: docker/agents/helix.Dockerfile
     env_file:
       - .env
     volumes:
-      - ./roles:/app/roles
-      - ./knowledge:/app/knowledge
-      - ./workflows:/app/workflows
+      - helix-data:/app/data
+      - helix-logs:/app/logs
+      - ../roles:/app/roles
+      - ../knowledge:/app/knowledge
+      - ../workflows:/app/workflows
     environment:
       - AGENT_NAME=Helix
       - AGENT_TYPE=orchestrator
       - MODEL=${HELIX_MODEL:-gpt-4o}
     ports:
       - "3000:3000"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
     restart: unless-stopped
+    networks:
+      - helix-network
 
   # 代码开发
   codex:
     build:
-      context: .
+      context: ..
       dockerfile: docker/agents/codex.Dockerfile
     env_file:
       - .env
     volumes:
-      - ./roles:/app/roles
-      - ./knowledge/skills:/app/skills
+      - codex-data:/app/data
+      - codex-logs:/app/logs
+      - ../roles:/app/roles
+      - ../knowledge/skills:/app/skills
     environment:
       - AGENT_NAME=Codex
       - AGENT_TYPE=executor
       - MODEL=${CODEX_MODEL:-codex}
     ports:
       - "3001:3001"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
     restart: unless-stopped
+    networks:
+      - helix-network
 
   # 调研员
   researcher:
     build:
-      context: .
+      context: ..
       dockerfile: docker/agents/researcher.Dockerfile
     env_file:
       - .env
     volumes:
-      - ./roles:/app/roles
-      - ./knowledge/skills:/app/skills
+      - researcher-data:/app/data
+      - researcher-logs:/app/logs
+      - ../roles:/app/roles
+      - ../knowledge/skills:/app/skills
     environment:
       - AGENT_NAME=Researcher
       - AGENT_TYPE=researcher
       - MODEL=${RESEARCHER_MODEL:-gpt-4o}
     ports:
       - "3002:3002"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3002/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
     restart: unless-stopped
+    networks:
+      - helix-network
 
   # 代码审查
   reviewer:
     build:
-      context: .
+      context: ..
       dockerfile: docker/agents/reviewer.Dockerfile
     env_file:
       - .env
     volumes:
-      - ./roles:/app/roles
+      - reviewer-data:/app/data
+      - reviewer-logs:/app/logs
+      - ../roles:/app/roles
     environment:
       - AGENT_NAME=Reviewer
       - AGENT_TYPE=reviewer
       - MODEL=${REVIEWER_MODEL:-claude}
     ports:
       - "3003:3003"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3003/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
     restart: unless-stopped
+    networks:
+      - helix-network
 
   # 测试工程师
   tester:
     build:
-      context: .
+      context: ..
       dockerfile: docker/agents/tester.Dockerfile
     env_file:
       - .env
     volumes:
-      - ./roles:/app/roles
+      - tester-data:/app/data
+      - tester-logs:/app/logs
+      - ../roles:/app/roles
     environment:
       - AGENT_NAME=Tester
       - AGENT_TYPE=tester
       - MODEL=${TESTER_MODEL:-gpt-4o}
     ports:
       - "3004:3004"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3004/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
     restart: unless-stopped
+    networks:
+      - helix-network
 
   # 文档工程师
   documenter:
     build:
-      context: .
+      context: ..
       dockerfile: docker/agents/documenter.Dockerfile
     env_file:
       - .env
     volumes:
-      - ./roles:/app/roles
+      - documenter-data:/app/data
+      - documenter-logs:/app/logs
+      - ../roles:/app/roles
     environment:
       - AGENT_NAME=Documenter
       - AGENT_TYPE=documenter
       - MODEL=${DOCUMENTER_MODEL:-gpt-4o}
     ports:
       - "3005:3005"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3005/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
     restart: unless-stopped
+    networks:
+      - helix-network
 
   # 资源协调
   scheduler:
     build:
-      context: .
+      context: ..
       dockerfile: docker/agents/scheduler.Dockerfile
     env_file:
       - .env
     volumes:
-      - ./roles:/app/roles
+      - scheduler-data:/app/data
+      - scheduler-logs:/app/logs
+      - ../roles:/app/roles
     environment:
       - AGENT_NAME=Scheduler
       - AGENT_TYPE=coordinator
       - MODEL=${SCHEDULER_MODEL:-gpt-4o}
     ports:
       - "3006:3006"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3006/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
     restart: unless-stopped
+    networks:
+      - helix-network
 
   # 质量评估
   evaluator:
     build:
-      context: .
+      context: ..
       dockerfile: docker/agents/evaluator.Dockerfile
     env_file:
       - .env
     volumes:
-      - ./roles:/app/roles
+      - evaluator-data:/app/data
+      - evaluator-logs:/app/logs
+      - ../roles:/app/roles
     environment:
       - AGENT_NAME=Evaluator
       - AGENT_TYPE=evaluator
       - MODEL=${EVALUATOR_MODEL:-claude}
     ports:
       - "3007:3007"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3007/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
     restart: unless-stopped
+    networks:
+      - helix-network
 
   # 进化工程师
   learning:
     build:
-      context: .
+      context: ..
       dockerfile: docker/agents/learning.Dockerfile
     env_file:
       - .env
     volumes:
-      - ./roles:/app/roles
-      - ./knowledge:/app/knowledge
+      - learning-data:/app/data
+      - learning-logs:/app/logs
+      - ../roles:/app/roles
+      - ../knowledge:/app/knowledge
     environment:
       - AGENT_NAME=Learning
       - AGENT_TYPE=learner
       - MODEL=${LEARNING_MODEL:-gpt-4o}
     ports:
       - "3008:3008"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3008/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
     restart: unless-stopped
+    networks:
+      - helix-network
 
   # 安全守护
   guardian:
     build:
-      context: .
+      context: ..
       dockerfile: docker/agents/guardian.Dockerfile
     env_file:
       - .env
     volumes:
-      - ./roles:/app/roles
+      - guardian-data:/app/data
+      - guardian-logs:/app/logs
+      - ../roles:/app/roles
     environment:
       - AGENT_NAME=Guardian
       - AGENT_TYPE=guardian
       - MODEL=${GUARDIAN_MODEL:-gpt-4o}
     ports:
       - "3009:3009"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3009/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
     restart: unless-stopped
+    networks:
+      - helix-network
 
+# ===========================================
+# Volumes - 数据持久化
+# ===========================================
+volumes:
+  helix-data:
+  helix-logs:
+  codex-data:
+  codex-logs:
+  researcher-data:
+  researcher-logs:
+  reviewer-data:
+  reviewer-logs:
+  tester-data:
+  tester-logs:
+  documenter-data:
+  documenter-logs:
+  scheduler-data:
+  scheduler-logs:
+  evaluator-data:
+  evaluator-logs:
+  learning-data:
+  learning-logs:
+  guardian-data:
+  guardian-logs:
+
+# ===========================================
 # 网络
+# ===========================================
 networks:
-  default:
-    name: helix-network
+  helix-network:
+    driver: bridge
