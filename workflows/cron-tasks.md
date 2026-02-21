@@ -1,108 +1,183 @@
-# Cron 任务设计
+# Cron 任务详细设计
 
-> 自动化任务调度
-
----
-
-## GitHub 同步策略
-
-### 目标
-
-- 每天同步 GitHub 1-3 次
-- 保持本地与 GitHub 一致
-- 自动更新知识库
-
-### 同步时间
-
-| # | 时间 | 间隔 | 用途 |
-|---|------|------|------|
-| 1 | 08:00 | - | 早晨同步，获取最新任务 |
-| 2 | 16:00 | 8h | 下午同步，检查更新 |
-| 3 | 22:00 | 6h | 晚间同步，最终确认 |
+> 每 15 分钟自检一次 + 每天 3 次 GitHub 同步
 
 ---
 
-## 同步任务设计
+## 时间线
 
-### 任务 1: GitHub Pull
+### 15 分钟循环 (永动)
+
+| 时间 | 任务 |
+|------|------|
+| 00 | 自检 |
+| 15 | 自检 |
+| 30 | 自检 |
+| 45 | 自检 |
+
+### 每日固定 (3次)
+
+| 时间 | 任务 |
+|------|------|
+| 08:00 | GitHub Pull |
+| 16:00 | GitHub Pull |
+| 22:00 | GitHub Push |
+
+### 每周固定
+
+| 时间 | 任务 |
+|------|------|
+| 周日 10:00 | Knowledge 巡检 |
+| 周日 11:00 | 框架文档更新 |
+| 周日 12:00 | Agent 状态检查 |
+
+---
+
+## 自检任务 (每 15 分钟)
+
+### 检查清单
 
 ```yaml
-name: github-sync-morning
-schedule: "0 8 * * *"  # 每天 08:00
-action: |
-  1. git fetch origin
-  2. git pull origin master
-  3. 检查更新文件
-  4. 更新本地 knowledge/
+self_check:
+  - name: check_openclaw_status
+    action: openclaw gateway status
+    alert_if: error
 
-env:
-  REPO: fatdm54/helix-framework
-  BRANCH: master
-```
+  - name: check_github_sync
+    action: git fetch origin && git status
+    alert_if: behind
 
-### 任务 2: GitHub Pull + Knowledge Update
+  - name: check_pending_tasks
+    action: read SUBAGENT_TASKS.json
+    alert_if: blocked > 3
 
-```yaml
-name: github-sync-afternoon
-schedule: "0 16 * * *"  # 每天 16:00
-action: |
-  1. git fetch + pull
-  2. 读取更新的 roles/*.md
-  3. 更新 Agent 知识库
-  4. 验证配置完整性
-```
+  - name: check_memory_usage
+    action: check context tokens
+    alert_if: > 3500
 
-### 任务 3: GitHub Push + Daily Report
-
-```yaml
-name: github-sync-night
-schedule: "0 22 * * *"  # 每天 22:00
-action: |
-  1. git add .
-  2. 检查变更
-  3. 如果有新内容 → commit + push
-  4. 生成每日报告
-  5. 推送到 GitHub
+  - name: check_eternal_engine
+    action: read eternal-engine.md
+    alert_if: task_overdue > 0
 ```
 
 ---
 
-## 其他 Cron 任务
+## GitHub 同步
 
-### 任务 4: 健康检查
+### 08:00 - 早晨同步
 
-```yaml
-name: healthcheck-daily
-schedule: "0 9 * * *"  # 每天 09:00
-action: |
-  1. 检查 OpenClaw 状态
-  2. 检查 Agent 活跃度
-  3. 检查 GitHub sync 状态
-  4. 报告异常
+```bash
+#!/bin/bash
+# morning-sync.sh
+
+cd ~/helix-framework
+
+# 1. 拉取最新
+git fetch origin
+git pull origin master
+
+# 2. 检查更新
+UPDATED=$(git diff --name-only HEAD origin/master)
+
+if [ -n "$UPDATED" ]; then
+  echo "Updated files:"
+  echo "$UPDATED"
+  
+  # 3. 如果有重要更新，重新加载
+  for file in $UPDATED; do
+    case $file in
+      roles/*.md) echo "Reloading roles..." ;;
+      workflows/*.md) echo "Reloading workflows..." ;;
+      knowledge/*.md) echo "Reloading knowledge..." ;;
+    esac
+  done
+fi
+
+echo "Morning sync complete: $(date)"
 ```
 
-### 任务 5: Learning 分析
+### 16:00 - 下午同步
 
-```yaml
-name: learning-daily
-schedule: "0 23 * * *"  # 每天 23:00
-action: |
-  1. 读取当日任务日志
-  2. 分析成功/失败模式
-  3. 更新 knowledge/
-  4. 生成进化建议
+```bash
+#!/bin/bash
+# afternoon-sync.sh
+
+cd ~/helix-framework
+
+# 1. 拉取最新
+git fetch origin
+git pull origin master
+
+# 2. 验证配置完整性
+echo "Checking configs..."
+
+# 3. 记录状态
+echo "Afternoon sync complete: $(date)"
 ```
 
-### 任务 6: Knowledge 巡检
+### 22:00 - 晚间同步 + 推送
 
-```yaml
-name: knowledge-weekly
-schedule: "0 10 * * 0"  # 每周日 10:00
-action: |
-  1. 检查过期文档
-  2. 验证链接有效性
-  3. 整理 knowledge/
-  4. 归档过时内容
+```bash
+#!/bin/bash
+# night-sync.sh
+
+cd ~/helix-framework
+
+# 1. 检查本地变更
+git status
+
+# 2. 如果有变更，添加并提交
+if [ -n "$(git status --porcelain)" ]; then
+  git add .
+  git commit -m "update: $(date +%Y-%m-%d)"
+  git push origin master
+  echo "Pushed local changes"
+else
+  echo "No local changes to push"
+fi
+
+# 3. 拉取远程最新
+git pull origin master
+
+echo "Night sync complete: $(date)"
+```
+
+---
+
+## 每周任务
+
+### Sunday 10:00 - Knowledge 巡检
+
+```bash
+#!/bin/bash
+# knowledge-check.sh
+
+cd ~/helix-framework/knowledge
+
+# 1. 检查过期文档
+find . -name "*.md" -mtime +90
+
+# 2. 检查链接有效性
+# ...
+
+# 3. 清理归档
+echo "Knowledge check complete"
+```
+
+### Sunday 11:00 - 框架文档更新
+
+```bash
+# 更新 README 索引
+# 检查缺失的文档
+# 更新版本号
+```
+
+### Sunday 12:00 - Agent 状态检查
+
+```bash
+# 检查所有 Agent 配置
+# 验证角色文档完整性
+# 测试通信协议
 ```
 
 ---
@@ -114,46 +189,55 @@ action: |
 
 cron:
   enabled: true
-  
+  timezone: Asia/Kuala_Lumpur
+
   jobs:
-    - name: github-sync
-      schedule: "0 8,16,22 * * *"
-      command: |
-        cd ~/helix-framework
-        git fetch origin
-        git pull origin master
-      notification: true
+    # 自检 - 每 15 分钟
+    - name: self-check
+      schedule: "*/15 * * * *"
+      action: |
+        echo "Self check..."
+      log: /app/logs/self-check.log
     
-    - name: github-push
+    # GitHub Pull - 早晨
+    - name: github-morning
+      schedule: "0 8 * * *"
+      action: bash scripts/morning-sync.sh
+      notification: on_failure
+    
+    # GitHub Pull - 下午
+    - name: github-afternoon
+      schedule: "0 16 * * *"
+      action: bash scripts/afternoon-sync.sh
+      notification: on_failure
+    
+    # GitHub Push - 晚间
+    - name: github-night
       schedule: "0 22 * * *"
-      command: |
-        cd ~/helix-framework
-        git add .
-        git commit -m "daily update $(date +%Y-%m-%d)"
-        git push
-      condition: has_changes  # 只在有变更时执行
+      action: bash scripts/night-sync.sh
+      notification: on_failure
     
-    - name: healthcheck
-      schedule: "0 9 * * *"
-      command: openclaw gateway status
-      notification: critical_only
+    # 每周 Knowledge 巡检
+    - name: knowledge-weekly
+      schedule: "0 10 * * 0"
+      action: bash scripts/knowledge-check.sh
     
-    - name: learning-analyze
-      schedule: "0 23 * * *"
-      command: echo "Learning analysis..."
-      # Learning Agent 自动执行
+    # 每周 Agent 状态
+    - name: agent-status-weekly
+      schedule: "0 12 * * 0"
+      action: openclaw status
 ```
 
 ---
 
-## 通知规则
+## 告警规则
 
-| 事件 | 通知方式 | 级别 |
-|------|----------|------|
-| GitHub sync 成功 | 不通知 | - |
+| 事件 | 通知 | 级别 |
+|------|------|------|
+| 自检失败 | 不通知 | - |
 | GitHub sync 失败 | 消息 | Warning |
-| Healthcheck 失败 | 消息 + 邮件 | Critical |
-| 发现新 Issue | 消息 | Info |
+| 任务阻塞 > 3 | 消息 | Critical |
+| 连续 3 次自检失败 | 消息 + 邮件 | Critical |
 
 ---
 
@@ -161,11 +245,27 @@ cron:
 
 ```json
 {
-  "last_sync": "2026-02-21T22:00:00Z",
-  "sync_count_today": 3,
-  "last_healthcheck": "2026-02-21T09:00:00Z",
-  "health": "healthy",
-  "learning_analyzed": true
+  "self_check": {
+    "last_run": "2026-02-21T18:30:00Z",
+    "status": "healthy",
+    "checks": {
+      "openclaw": "ok",
+      "github": "ok",
+      "tasks": "ok",
+      "memory": "ok",
+      "engine": "ok"
+    }
+  },
+  "github_sync": {
+    "last_morning": "2026-02-21T08:00:00Z",
+    "last_afternoon": "2026-02-21T16:00:00Z",
+    "last_night": "2026-02-21T22:00:00Z"
+  },
+  "weekly": {
+    "last_knowledge": "2026-02-16T10:00:00Z",
+    "last_docs": "2026-02-16T11:00:00Z",
+    "last_agents": "2026-02-16T12:00:00Z"
+  }
 }
 ```
 
@@ -173,43 +273,38 @@ cron:
 
 ## 实现方式
 
-### 方案 A: OpenClaw 内置 Cron
+### 方案 1: OpenClaw 内置 Cron
 
 ```bash
-# 开启 cron
 openclaw cron enable
-
-# 添加任务
-openclaw cron add --name github-sync --schedule "0 8,16,22 * *" --command "git -C ~/helix-framework pull"
 ```
 
-### 方案 B: 系统 crontab
+### 方案 2: GitHub Actions
+
+```yaml
+# .github/workflows/self-check.yml
+name: Self Check
+on:
+  schedule:
+    - cron: '*/15 * * * *'
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Self check
+        run: echo "Self check..."
+```
+
+### 方案 3: 系统 crontab
 
 ```bash
 # 编辑 crontab
 crontab -e
 
 # 添加
-0 8,16,22 * * * cd ~/helix-framework && git fetch origin && git pull origin master
-```
-
-### 方案 C: GitHub Actions (推荐)
-
-```yaml
-# .github/workflows/sync.yml
-name: Daily Sync
-on:
-  schedule:
-    - cron: '0 8,16,22 * * *'
-jobs:
-  sync:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: Sync
-        run: |
-          git fetch origin
-          git pull origin master
+*/15 * * * * /home/dm/helix-framework/scripts/self-check.sh
 ```
 
 ---
