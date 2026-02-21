@@ -13,7 +13,18 @@
 
 ---
 
-## 数据结构
+## 数据来源
+
+### 官方 Skills (推荐)
+
+- **Source**: `github.com/openclaw/skills`
+- **Count**: 1000+ skills
+- **URL**: https://clawhub.ai (官方 registry)
+
+### 社区 Skills
+
+- **Source**: `VoltAgent/awesome-openclaw-skills`
+- **Count**: 3002 skills (过滤后的)
 
 ### 验证记录
 
@@ -36,12 +47,24 @@
 
 ---
 
-## 随机选择逻辑
+## 获取 Skills 列表
 
-1. 从 awesome-openclaw-skills 获取列表
-2. 排除已验证的 skills
-3. 随机选择 5 个
-4. 优先选择高星/高相关性的
+### 从官方 Repo
+
+```bash
+# 获取所有 skills
+gh api repos/openclaw/skills/contents/skills --jq '.[].name' > skills_list.txt
+
+# 获取前 100 个
+gh api repos/openclaw/skills/contents/skills --jq '.[0:100][].name'
+```
+
+### 从 ClawHub (需要浏览器)
+
+```bash
+# 打开 clawhub.ai
+browser open https://clawhub.ai/skills
+```
 
 ---
 
